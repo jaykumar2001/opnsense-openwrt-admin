@@ -1,3 +1,8 @@
 **/__pycache__/
 __pycache__/
 *.pyc
+
+# Superpowers / Claude Code artifacts
+.claude/
+docs/superpowers/
+*.superpowers.md

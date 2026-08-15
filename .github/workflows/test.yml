@@ -1,0 +1,16 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run broker unit tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Syntax check broker
+        run: python3 -m py_compile src/opnsense/scripts/OPNsense/OpenWrtAdmin/broker.py

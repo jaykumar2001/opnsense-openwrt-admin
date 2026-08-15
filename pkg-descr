@@ -3,4 +3,4 @@ OpenWrt routers and access points. It offers inventory management, status
 polling over SSH, Wi-Fi client visibility, configuration sync and backup
 workflows, and bulk operational actions from the OPNsense web interface.
 
-WWW: https://github.com/Udo/opnsense-openwrt-admin
+WWW: https://github.com/jaykumar2001/opnsense-openwrt-admin
