@@ -26,6 +26,8 @@
         var statusLine = $("#openwrtAdminClientStatsStatus");
         var summaryLine = $("#openwrtAdminClientStatsSummary");
         var brokerBanner = "#openwrtAdminClientStatsBrokerBanner";
+        var routerFilter = $("#openwrtAdminClientRouterFilter");
+        var lastClients = [];
 
         function formatSignal(signal) {
             if (signal === null || signal === undefined || signal === "") {
@@ -92,12 +94,60 @@
             return wrapper;
         }
 
+        function updateRouterDropdown(clients) {
+            var selected = routerFilter.val();
+            var seen = {};
+            var options = [{ uuid: "", label: "{{ lang._('All APs') }}" }];
+
+            clients.forEach(function(client) {
+                (client.associations || []).forEach(function(assoc) {
+                    var uuid = assoc.router_uuid || "";
+                    if (uuid && !seen[uuid]) {
+                        seen[uuid] = true;
+                        var label = assoc.ap_hostname || assoc.ap_address || uuid;
+                        options.push({ uuid: uuid, label: label });
+                    }
+                });
+            });
+
+            options.sort(function(a, b) {
+                if (a.uuid === "") return -1;
+                if (b.uuid === "") return 1;
+                return a.label.localeCompare(b.label);
+            });
+
+            routerFilter.empty();
+            options.forEach(function(opt) {
+                routerFilter.append($("<option>", { value: opt.uuid, text: opt.label }));
+            });
+
+            if (selected && routerFilter.find("option[value='" + selected + "']").length) {
+                routerFilter.val(selected);
+            }
+        }
+
+        function applyRouterFilter(clients) {
+            var uuid = routerFilter.val();
+            if (!uuid) return clients;
+            return clients.filter(function(client) {
+                return (client.associations || []).some(function(assoc) {
+                    return assoc.router_uuid === uuid;
+                });
+            });
+        }
+
         function renderRows(clients) {
             tbody.empty();
             summaryLine.text("");
 
-            if (!clients.length) {
-                summaryLine.text("{{ lang._('No clients are currently associated with any managed AP.') }}");
+            updateRouterDropdown(clients);
+            var visible = applyRouterFilter(clients);
+
+            if (!visible.length) {
+                var emptyMsg = routerFilter.val()
+                    ? "{{ lang._('No clients are currently associated with the selected router.') }}"
+                    : "{{ lang._('No clients are currently associated with any managed AP.') }}";
+                summaryLine.text(emptyMsg);
                 tbody.append(
                     $("<tr>").append(
                         $("<td>", {
@@ -110,9 +160,9 @@
                 return;
             }
 
-            summaryLine.text(clients.length + " {{ lang._('clients currently visible across the AP fleet.') }}");
+            summaryLine.text(visible.length + (visible.length !== clients.length ? " / " + clients.length : "") + " {{ lang._('clients currently visible across the AP fleet.') }}");
 
-            clients.forEach(function(client) {
+            visible.forEach(function(client) {
                 var hostname = client.hostname || "---";
                 var ipAddress = client.ip_address || "---";
                 var description = client.description_guess || "---";
@@ -139,10 +189,15 @@
             });
         }
 
+        routerFilter.on("change", function() {
+            renderRows(lastClients);
+        });
+
         function refreshClientStats() {
             openwrtAdminUpdateBrokerBanner(brokerBanner);
             ajaxCall("/api/openwrtadmin/service/clients/", {}, function(data) {
-                renderRows(Array.isArray(data.clients) ? data.clients : []);
+                lastClients = Array.isArray(data.clients) ? data.clients : [];
+                renderRows(lastClients);
                 statusLine.text("{{ lang._('Updated') }} " + new Date().toLocaleTimeString());
             });
         }
@@ -160,6 +215,10 @@
                 <div class="box-header with-border">
                     <h3 class="box-title">{{ lang._('Clients') }}</h3>
                     <div class="box-tools pull-right">
+                        <label for="openwrtAdminClientRouterFilter" class="control-label" style="margin-right:4px;font-weight:normal;">{{ lang._('AP Filter') }}</label>
+                        <select id="openwrtAdminClientRouterFilter" class="form-control input-sm" style="display:inline-block;width:auto;margin-right:8px;">
+                            <option value="">{{ lang._('All APs') }}</option>
+                        </select>
                         <span class="text-muted" id="openwrtAdminClientStatsStatus"></span>
                     </div>
                 </div>
